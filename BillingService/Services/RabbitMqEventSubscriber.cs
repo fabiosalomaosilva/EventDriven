@@ -1,4 +1,5 @@
-﻿using BillingService.Models;
+﻿using BillingService.Data;
+using BillingService.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Text.Json;
 
 namespace BillingService.Services;
 
-public class RabbitMqEventSubscriber(IConnection connection) : IEventSubscriber
+public class RabbitMqEventSubscriber(IConnection connection, IServiceScopeFactory scopeFactory) : IEventSubscriber
 {
     public void Subscribe()
     {
@@ -14,13 +15,19 @@ public class RabbitMqEventSubscriber(IConnection connection) : IEventSubscriber
         channel.QueueDeclare(queue: "orders", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
         var consumer = new EventingBasicConsumer(channel);
-        consumer.Received += (model, ea) =>
+        consumer.Received += async (model, deliverEventArgs) =>
         {
-            var body = ea.Body.ToArray();
+            var body = deliverEventArgs.Body.ToArray();
             var message = Encoding.UTF8.GetString(body);
             var order = JsonSerializer.Deserialize<Order>(message);
 
             if (order == null) return;
+
+            // Create a scope to resolve scoped services
+            using var scope = scopeFactory.CreateScope();
+            // Create a context instance to interact with the database
+            var context = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+
             var invoice = new Invoice
             {
                 Id = Guid.NewGuid(),
@@ -31,6 +38,8 @@ public class RabbitMqEventSubscriber(IConnection connection) : IEventSubscriber
                 CreatedAt = DateTime.UtcNow
             };
 
+            context.Invoices.Add(invoice);
+            await context.SaveChangesAsync();
             Console.WriteLine($"Invoice generated: {JsonSerializer.Serialize(invoice)}");
         };
 

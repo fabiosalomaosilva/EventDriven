@@ -38,9 +38,20 @@ public class RabbitMqEventSubscriber(IConnection connection, IServiceScopeFactor
                 CreatedAt = DateTime.UtcNow
             };
 
+
+
             context.Invoices.Add(invoice);
             await context.SaveChangesAsync();
-            Console.WriteLine($"Invoice generated: {JsonSerializer.Serialize(invoice)}");
+
+            // Publicando evento de fatura no RabbitMQ
+            var invoiceEvent = JsonSerializer.Serialize(invoice);
+            var invoiceBody = Encoding.UTF8.GetBytes(invoiceEvent);
+
+            channel.QueueDeclare(queue: "invoices", durable: false, exclusive: false, autoDelete: false, arguments: null);
+            channel.BasicPublish(exchange: "", routingKey: "invoices", basicProperties: null, body: invoiceBody);
+
+            Console.WriteLine($"Fatura salva e evento publicado: {invoiceEvent}");
+
         };
 
         channel.BasicConsume(queue: "orders", autoAck: true, consumer: consumer);

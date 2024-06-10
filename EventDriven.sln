@@ -5,7 +5,9 @@ VisualStudioVersion = 17.10.34928.147
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OrderService", "OrderService\OrderService.csproj", "{844E9DD4-A810-45DE-81F4-C07CD5C8F249}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BillingService", "BillingService\BillingService.csproj", "{18E10702-3626-4FB1-8F80-D4394D988323}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BillingService", "BillingService\BillingService.csproj", "{18E10702-3626-4FB1-8F80-D4394D988323}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationService", "NotificationService\NotificationService.csproj", "{6C57BFF3-6145-4A28-8E58-FD471D7AAEEF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{18E10702-3626-4FB1-8F80-D4394D988323}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{18E10702-3626-4FB1-8F80-D4394D988323}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{18E10702-3626-4FB1-8F80-D4394D988323}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C57BFF3-6145-4A28-8E58-FD471D7AAEEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C57BFF3-6145-4A28-8E58-FD471D7AAEEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C57BFF3-6145-4A28-8E58-FD471D7AAEEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C57BFF3-6145-4A28-8E58-FD471D7AAEEF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

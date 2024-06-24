@@ -11,58 +11,56 @@ namespace BillingService.Services
     {
         public void Subscribe()
         {
-            using (var channel = connection.CreateModel())
+            using var channel = connection.CreateModel();
+            channel.QueueDeclare(queue: "orders", durable: false, exclusive: false, autoDelete: false, arguments: null);
+
+            var consumer = new EventingBasicConsumer(channel);
+            consumer.Received += async (model, ea) =>
             {
-                channel.QueueDeclare(queue: "orders", durable: false, exclusive: false, autoDelete: false, arguments: null);
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+                var order = JsonSerializer.Deserialize<Order>(message);
 
-                var consumer = new EventingBasicConsumer(channel);
-                consumer.Received += async (model, ea) =>
+                if (order == null) return;
+                using var scope = scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+                var invoice = new Invoice
                 {
-                    var body = ea.Body.ToArray();
-                    var message = Encoding.UTF8.GetString(body);
-                    var order = JsonSerializer.Deserialize<Order>(message);
-
-                    if (order == null) return;
-                    using var scope = scopeFactory.CreateScope();
-                    var context = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
-                    var invoice = new Invoice
-                    {
-                        Id = Guid.NewGuid(),
-                        OrderId = order.Id,
-                        ProductName = order.ProductName,
-                        Quantity = order.Quantity,
-                        Price = order.Price,
-                        CreatedAt = DateTime.UtcNow
-                    };
-
-                    try
-                    {
-                        context.Invoices.Add(invoice);
-                        await context.SaveChangesAsync();
-
-                        // Publicar evento de fatura no RabbitMQ
-                        var invoiceEvent = JsonSerializer.Serialize(invoice);
-                        var invoiceBody = Encoding.UTF8.GetBytes(invoiceEvent);
-                        channel.QueueDeclare(queue: "invoices", durable: false, exclusive: false, autoDelete: false, arguments: null);
-                        channel.BasicPublish(exchange: "", routingKey: "invoices", basicProperties: null, body: invoiceBody);
-                        Console.WriteLine($"Fatura salva e evento publicado: {invoiceEvent}");
-                    }
-                    catch (Exception ex)
-                    {
-                        // Publicar evento de compensação
-                        var compensationEvent = JsonSerializer.Serialize(new { OrderId = order.Id });
-                        var compensationBody = Encoding.UTF8.GetBytes(compensationEvent);
-                        channel.QueueDeclare(queue: "compensations", durable: false, exclusive: false, autoDelete: false, arguments: null);
-                        channel.BasicPublish(exchange: "", routingKey: "compensations", basicProperties: null, body: compensationBody);
-                        Console.WriteLine($"Erro ao salvar fatura, evento de compensação publicado: {compensationEvent}");
-                    }
+                    Id = Guid.NewGuid(),
+                    OrderId = order.Id,
+                    ProductName = order.ProductName,
+                    Quantity = order.Quantity,
+                    Price = order.Price,
+                    CreatedAt = DateTime.UtcNow
                 };
 
-                channel.BasicConsume(queue: "orders", autoAck: true, consumer: consumer);
+                try
+                {
+                    context.Invoices.Add(invoice);
+                    await context.SaveChangesAsync();
 
-                Console.WriteLine("Pressione [enter] para sair.");
-                Console.ReadLine();
-            }
+                    // Publicar evento de fatura no RabbitMQ
+                    var invoiceEvent = JsonSerializer.Serialize(invoice);
+                    var invoiceBody = Encoding.UTF8.GetBytes(invoiceEvent);
+                    channel.QueueDeclare(queue: "invoices", durable: false, exclusive: false, autoDelete: false, arguments: null);
+                    channel.BasicPublish(exchange: "", routingKey: "invoices", basicProperties: null, body: invoiceBody);
+                    Console.WriteLine($"Fatura salva e evento publicado: {invoiceEvent}");
+                }
+                catch (Exception ex)
+                {
+                    // Publicar evento de compensação
+                    var compensationEvent = JsonSerializer.Serialize(new { OrderId = order.Id });
+                    var compensationBody = Encoding.UTF8.GetBytes(compensationEvent);
+                    channel.QueueDeclare(queue: "compensations", durable: false, exclusive: false, autoDelete: false, arguments: null);
+                    channel.BasicPublish(exchange: "", routingKey: "compensations", basicProperties: null, body: compensationBody);
+                    Console.WriteLine($"Erro ao salvar fatura, evento de compensação publicado: {compensationEvent}");
+                }
+            };
+
+            channel.BasicConsume(queue: "orders", autoAck: true, consumer: consumer);
+
+            Console.WriteLine("Pressione [enter] para sair.");
+            Console.ReadLine();
         }
     }
 }
